@@ -4,7 +4,7 @@ Collect host states and container states based on nvitop and docker (Docker's of
 import os.path as osp
 from datetime import datetime
 import socket
-from typing import List, Union, Dict, Tuple, Literal
+from typing import List, Union, Dict, Literal
 from pprint import pprint
 
 # https://github.com/XuehaiPan/nvitop

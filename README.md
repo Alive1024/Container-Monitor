@@ -2,7 +2,9 @@
 
 # Introduction
 
-This is a very simple container monitor, showing basic host states (CPU, memory, GPU, disk) and container states (ID, Name, CPU, memory, GPU processes). Suitable for this kind of situation: there are multiple users using the same GPU server in each other's docker container, you want users to be able to know about the load states of the host in realtime without accessing the physical host.
+This is a very simple container monitor, showing basic host states (CPU, memory, GPU) and container states (ID, Name, CPU, memory, GPU processes). Suitable for this kind of situation: there are multiple users using the same GPU server in each other's docker container, you want users to be able to know about the load states of the host in realtime without accessing the physical host.
+
+![](docs/Screenshot.png)
 
 This repo provides a web application displaying state information. The application does not persist any state data, only displaying current states. State collection will be paused if there is no client accessing latest states lasting for more than the threshold (30 seconds by default), in order to save reduce running overhead. And the application itself can be deployed as a container.
 
@@ -21,15 +23,15 @@ Libraries adopted:
 
 # Usage
 
-**1. Clone this repo and build a docker image using the Dockfile**:
+## 1. Clone this repo and build a docker image using the Dockfile
+
+Clone this repo, enter the directory of this repo, and:
 
 ```bash
-git clone 
-# Enter the directory of this project
 docker build -t monitor:latest .
 ```
 
-**2. Start a monitor container**:
+## 2. Start a monitor container
 
 The container needs to be able to access host's docker, there are two ways to achieve this, and hence there are two different startup methods.
 
@@ -53,7 +55,7 @@ Note:
 
 ### 2.2 Configure remote access for Docker daemon
 
-First of all, the host's docker should be configured to make remote access available. Follow instructions from offical doc: [Configure remote access for Docker daemon](https://docs.docker.com/config/daemon/remote-access/).
+First of all, the host's docker should be configured to make remote access available. Follow instructions from offical doc: [Configure remote access for Docker daemon](https://docs.docker.com/config/daemon/remote-access/). Note that `collector.py` uses port 2375 by default.
 
 In this way, mounting docker.sock or docker command is no longer needed.
 
@@ -66,7 +68,7 @@ docker run -itd --restart=unless-stopped --gpus=all --pid=host --network=host \
 In code logic by default, if "/var/run/docker.sock" exists, the 1st way is adopted. Otherwise, the 2nd way will be attempted.
 
 
-**3. Check the states**: 
+## 3. Check the states
 
 Open a browser and access `<IP address>:<port>`.
 
@@ -102,18 +104,6 @@ Result example of collector's `get_stats`:
                 "mem-perc-used": 59.2,
                 "mem-used/total": "",
                 "util-perc": 98
-            }
-        ],
-        "disk": [
-            {
-                "path": "/",
-                "perc-used": 5.8,
-                "used/total": "27G / 467G"
-            },
-            {
-                "path": "/home",
-                "perc-used": 1.1,
-                "used/total": "63G / 5500G"
             }
         ]
     },
