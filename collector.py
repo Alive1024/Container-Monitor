@@ -176,7 +176,7 @@ class StatsCollector:
             system_delta = stats["cpu_stats"]["system_cpu_usage"] - stats["precpu_stats"]["system_cpu_usage"]
             container_basic_stats[container.short_id] = {
                 "name": stats["name"][1:] if stats["name"].startswith('/') else stats["name"],
-                "cpu-perc": round((cpu_delta / system_delta) * len(stats["cpu_stats"]["cpu_usage"]["percpu_usage"]) * 100, 1),
+                "cpu-perc": round((cpu_delta / system_delta) * stats["cpu_stats"]["online_cpus"] * 100, 1),
                 "mem": {
                     "perc-used": round(stats["memory_stats"]["usage"] / stats["memory_stats"]["limit"] * 100, 1),
                     "used/total": f"{StatsCollector._convert_unit(stats['memory_stats']['usage'])} / "
