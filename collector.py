@@ -158,8 +158,7 @@ class StatsCollector:
 
         return gpu_process_stats
 
-    @staticmethod
-    def _get_container_basic_stats() -> Dict[str, Dict]:
+    def _get_container_basic_stats(self) -> Dict[str, Dict]:
         """
         There are 2 known ways to obtain CPU, memory and other basic stats of docker containers:
         1. Call "docker stats" command on host
@@ -167,50 +166,24 @@ class StatsCollector:
             https://docker-py.readthedocs.io/en/stable/containers.html#docker.models.containers.Container.stats
         The 1st way returns more concise information, while 2nd way returns more detailed infomation.
 
-        Through rough tests, the speeds of the two ways are very close. Considering actual needs
-        (only simple information about CPU and memory is needed), 1st way is adopted here.
+        Through rough tests, the speeds of the two ways are very close. To avoid access docker command, 2nd way is adopted here.
         """
-        ret = subprocess.run(
-            # Ask `docker stats` to return JSON data in specific struture:
-            # Ref: https://kylewbanks.com/blog/docker-stats-memory-cpu-in-json-format
-            # Property names must be enclosed in double quotes when decoded into dict
-            "docker stats --no-stream --format "
-            '\'{"id": "{{ .Container }}", '
-            '"name": "{{ .Name }}", '
-            '"cpu-perc": "{{ .CPUPerc }}", '
-            '"mem": {"perc-used": "{{ .MemPerc }}", "used/total": "{{ .MemUsage }}"}'
-            "}'",
-            shell=True,
-            universal_newlines=True,
-            capture_output=True,
-            text=True,
-        )
-
-        if ret.returncode == 0:
-            container_basic_stats = {}
-            for stat_str in ret.stdout.split("\n"):
-                if stat_str.strip() != "":
-                    stat_dict = json.loads(stat_str)
-                    # container_id = list(stat_dict.keys())[0]
-                    # container_basic_stats[container_id] = stat_dict[container_id]
-                    container_basic_stats[stat_dict["id"]] = {
-                        "name": stat_dict["name"],
-                        # Remove percent char and convert to float
-                        "cpu-perc": StatsCollector._perc_str_to_float(
-                            stat_dict["cpu-perc"]
-                        ),
-                        "mem": {
-                            "perc-used": StatsCollector._perc_str_to_float(
-                                stat_dict["mem"]["perc-used"]
-                            ),
-                            "used/total": stat_dict["mem"]["used/total"],
-                        },
-                    }
-            return container_basic_stats
-        else:
-            raise RuntimeError(
-                f"[ERROR] [{inspect.currentframe().f_code.co_name}] {ret.stderr}"
-            )
+        container_basic_stats = {}
+        for container in self.docker_client.containers.list():
+            stats = container.stats(stream=False)
+            # Ref: https://github.com/moby/moby/blob/eb131c5383db8cac633919f82abad86c99bffbe5/cli/command/container/stats_helpers.go#L175-L188
+            cpu_delta = stats["cpu_stats"]["cpu_usage"]["total_usage"] - stats["precpu_stats"]["cpu_usage"]["total_usage"]
+            system_delta = stats["cpu_stats"]["system_cpu_usage"] - stats["precpu_stats"]["system_cpu_usage"]
+            container_basic_stats[container.short_id] = {
+                "name": stats["name"][1:] if stats["name"].startswith('/') else stats["name"],
+                "cpu-perc": round((cpu_delta / system_delta) * len(stats["cpu_stats"]["cpu_usage"]["percpu_usage"]) * 100, 1),
+                "mem": {
+                    "perc-used": round(stats["memory_stats"]["usage"] / stats["memory_stats"]["limit"] * 100, 1),
+                    "used/total": f"{StatsCollector._convert_unit(stats['memory_stats']['usage'])} / "
+                                f"{StatsCollector._convert_unit(stats['memory_stats']['limit'])}"
+                }
+            }
+        return container_basic_stats
 
     @staticmethod
     def _determine_pid_which_container(pid: int, containers: List) -> Union[str, None]:
@@ -229,7 +202,7 @@ class StatsCollector:
         """
         Aggregate GPU stats into container basic stats.
         """
-        container_stats = StatsCollector._get_container_basic_stats()
+        container_stats = self._get_container_basic_stats()
         additional_info = ""
 
         # Create an empty sub-dict for GPU process(es)
