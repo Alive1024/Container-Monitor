@@ -27,7 +27,7 @@ Libraries adopted:
 
 Clone this repo, enter the directory of this repo, and:
 
-```bash
+```shell
 docker build -t monitor:latest .
 ```
 
@@ -37,7 +37,7 @@ The container needs to be able to access host's docker, there are two ways to ac
 
 ### 2.1 Mount docker.sock into the container
 
-```bash
+```shell
 docker run -itd --restart=unless-stopped --gpus=all --pid=host --network=host \
 -v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker \
 -v /etc/localtime:/etc/localtime \
@@ -59,7 +59,7 @@ First of all, the host's docker should be configured to make remote access avail
 
 In this way, mounting docker.sock or docker command is no longer needed.
 
-```bash
+```shell
 docker run -itd --restart=unless-stopped --gpus=all --pid=host --network=host \
 -v /etc/localtime:/etc/localtime \
 --name adm-monitor monitor:latest
