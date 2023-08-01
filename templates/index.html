@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        .tac {
+            text-align: center;
+        }
+
+        .ma {
+            margin: auto;
+        }
+
+        fieldset {
+            border: 2px solid black;
+            margin: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        fieldset legend {
+            font-size: 25px;
+            font-weight: 800;
+        }
+
+        #host-stats {
+            display: -webkit-flex;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        table {
+            border: 1px solid black;
+            border-collapse: collapse;
+            margin: auto;
+        }
+
+        table th {
+            border: 1px black solid;
+            background-color: lightgray;
+            padding: 5px;
+        }
+
+        table td {
+            border: 1px black solid;
+            text-align: center;
+            padding: 1px 3px;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
+    <script>
+        function getGaugeInitOption(titleText, value) {
+            return {
+                title: {
+                    text: titleText,
+                    textStyle: {
+                        color: '#000'
+                    },
+                    left: 'center',
+                    subtextStyle: {
+                        color: '#000',
+                        fontSize: 15
+                    }
+                },
+                grid: {
+                    top: '50%'
+                },
+                series: [
+                    {
+                        type: 'gauge',
+                        radius: '70%',
+                        axisLine: {
+                            lineStyle: {
+                                width: 30,
+                                color: [
+                                    [0.3, '#67e0e3'],
+                                    [0.7, '#37a2da'],
+                                    [1, '#fd666d']
+                                ]
+                            }
+                        },
+                        pointer: {
+                            itemStyle: {
+                                color: 'auto'
+                            },
+                            length: '50%'
+                        },
+                        axisTick: {
+                            distance: -30,
+                            length: 8,
+                            lineStyle: {
+                                color: '#fff',
+                                width: 2
+                            }
+                        },
+                        splitLine: {
+                            distance: -30,
+                            length: 30,
+                            lineStyle: {
+                                color: '#fff',
+                                width: 4
+                            }
+                        },
+                        axisLabel: {
+                            color: 'inherit',
+                            distance: 35,
+                            fontSize: 13
+                        },
+                        detail: {
+                            valueAnimation: true,
+                            formatter: '{value}%',
+                            color: 'inherit',
+                            textStyle: {
+                                fontSize: 15
+                            }
+                        },
+                        data: [
+                            {
+                                value: value
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+
+        function generateTableRowHTML(data, keys) {
+            let html = "";
+            for (let item of data) {
+                html += "<tr>";
+                for (let key of keys) {
+                    html += `<td>${item[key]}</td>`;
+                }
+                html += "</tr>";
+            }
+            return html;
+        }
+
+        function generateContainerTableRowHTML(containerStats, gpuCnt) {
+            let html = "";
+            for (let containerID of Object.keys(containerStats)) {
+                let containerStat = containerStats[containerID];
+                let containerGpuProc = containerStat["gpu-proc"];
+
+                let gpuProcCnt = containerGpuProc.length;
+                let rowSpan = 1;
+                if (gpuProcCnt !== 0) {
+                    rowSpan = gpuProcCnt + 1;
+                }
+
+                // Basic stats
+                html += `
+                <tr>
+                    <td rowspan=${rowSpan}>${containerStat["name"]}</td>
+                    <td rowspan=${rowSpan}>${containerID}</td>
+                    <td rowspan=${rowSpan}>${containerStat["cpu-perc"]}</td>
+                    <td rowspan=${rowSpan}>${containerStat["mem"]["perc-used"]}</td>
+                    <td rowspan=${rowSpan}>${containerStat["mem"]["used/total"]}</td>
+                </tr>
+                `
+                // GPU processes ordered by GPU index
+                for (let gpuIdx = 0; gpuIdx < gpuCnt; ++gpuIdx) {
+                    for (let gpuProc of containerGpuProc) {
+                        if (gpuProc["gpu-idx"] === gpuIdx) {
+                            html += `
+                            <tr>
+                                <td>${gpuProc["pid"]}</td>
+                                <td>${gpuProc["gpu-idx"]}</td>
+                                <td>${gpuProc["mem-perc-used"]}</td>
+                                <td>${gpuProc["sm-util"]}</td>
+                            </tr>
+                            `
+                        }
+                    }
+                }
+            }
+            return html;
+        }
+    </script>
+</head>
+
+<body>
+    <div id="logo" style="height:50px; width: 100%;"></div>
+    <hr>
+    <div>
+        <div>
+            <h2 id="hostname-ip" class="tac">Loading...</h2>
+        </div>
+        <div>
+            <h3 id="time" class="tac">Loading...</h3>
+        </div>
+        <fieldset>
+            <legend>Host Stats</legend>
+            <div id="host-stats">
+                <div id="cpu-perc" style="height: 310px; width: 300px;"></div>
+                <div id="mem" style="height: 310px; width: 300px;"></div>
+
+                <div id="gpu" style="width: 500px;">
+                    <div class="title">GPU</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Model</th>
+                                <th>Mem-Percent-Used(%)</th>
+                                <th>Mem-Used/Total</th>
+                                <th>Utilization(%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gpu-table">
+                            <tr>
+                                <td colspan="5">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="disk" style="width: 300px;">
+                    <div class="title">Disk</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Path</th>
+                                <th>Percent-Used(%)</th>
+                                <th>Used/Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="disk-table">
+                            <tr>
+                                <td colspan="3">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Container Stats</legend>
+            <div>
+                <table class="ma" style="width: 80%;">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Name</th>
+                            <th rowspan="2">ID</th>
+                            <th rowspan="2">CPU Percent(%)</th>
+                            <th colspan="2">Memory</th>
+                            <th colspan="4">GPU Processes</th>
+                        </tr>
+                        <tr>
+                            <th>Percent-Used(%)</th>
+                            <th>Used/Total</th>
+                            <th>PID</th>
+                            <th>GPU Index</th>
+                            <th>Memory-Percent-Used(%)</th>
+                            <th>SM Utilization(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="container-table">
+                        <tr>
+                            <td colspan="9">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </fieldset>
+
+        <div id="container-stats"></div>
+
+        <p id="note" style="margin-left: 10px;"></p>
+    </div>
+
+    <script>
+        let logoChart = echarts.init(document.getElementById("logo"));
+        logoChart.setOption({
+            graphic: {
+                elements: [
+                    {
+                        type: 'text',
+                        left: 'center',
+                        top: 'center',
+                        style: {
+                            text: '{{ page_title }}',
+                            fontSize: 50,
+                            fontWeight: 'bold',
+                            lineDash: [0, 200],
+                            lineDashOffset: 0,
+                            fill: 'transparent',
+                            stroke: '#000',
+                            lineWidth: 1
+                        },
+                        keyframeAnimation: {
+                            duration: 3000,
+                            loop: false,
+                            keyframes: [
+                                {
+                                    percent: 0.7,
+                                    style: {
+                                        fill: 'transparent',
+                                        lineDashOffset: 200,
+                                        lineDash: [200, 0]
+                                    }
+                                },
+                                {
+                                    percent: 1,
+                                    style: {
+                                        fill: 'black'
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        });
+
+        let cpuChart = echarts.init(document.getElementById("cpu-perc"));
+        cpuChart.setOption(getGaugeInitOption("CPU Percent", 0));
+        cpuChart.showLoading();
+
+        let memChart = echarts.init(document.getElementById("mem"));
+        memChart.setOption(getGaugeInitOption("Memory", 0));
+        memChart.showLoading();
+
+        window.addEventListener("resize", function () {
+            logoChart.resize();
+            cpuChart.resize();
+            memChart.resize();
+        });
+
+        function queryStats() {
+            axios.get("{{ url_for('query') }}")
+                .then(function (response) {
+                    let stats = response.data;
+                    let hostStats = stats["host-stats"];
+
+                    // Hostname & IP address
+                    document.getElementById("hostname-ip").innerText = `${stats["hostname"]} - (${stats["ip"]})`;
+                    
+                    // Datetime
+                    document.getElementById("time").innerText = `Acquisition Time: ${stats["time"]}`;
+
+                    // CPU
+                    cpuChart.hideLoading();
+                    cpuChart.setOption({ series: [{ data: [{ value: hostStats["cpu-perc"] }] }] })
+
+                    // Memory
+                    memChart.hideLoading();
+                    memChart.setOption({
+                        title: { subtext: `Used/Total: ${hostStats["mem"]["used/total"]}` },
+                        series: [{ data: [{ value: hostStats["mem"]["perc-used"] }] }]
+                    })
+
+                    // GPU
+                    let gpuTable = document.getElementById("gpu-table");
+                    gpuTable.innerHTML = generateTableRowHTML(hostStats["gpu"],
+                        keys = ["id", "model", "mem-perc-used", "mem-used/total", "util-perc"]);
+
+                    // Disk
+                    let diskTable = document.getElementById("disk-table");
+                    diskTable.innerHTML = generateTableRowHTML(hostStats["disk"],
+                        keys = ["path", "perc-used", "used/total"])
+
+                    // Container
+                    let containerTable = document.getElementById("container-table");
+                    containerTable.innerHTML = generateContainerTableRowHTML(stats["container-stats"],
+                        hostStats["gpu"].length);
+
+                    // Note
+                    document.getElementById("note").innerText = stats["note"];
+                })
+                .catch(function (error) {
+                    alert(error);
+                })
+                .then(function () {});
+        }
+        setInterval(queryStats, parseInt("{{ ajax_request_interval }}"));
+    </script>
+</body>
+
+</html>

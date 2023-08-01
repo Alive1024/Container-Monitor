@@ -1,0 +1,163 @@
+# Container Monitor
+
+# Introduction
+
+This is a very simple container monitor, showing basic host states (CPU, memory, GPU, disk) and container states (ID, Name, CPU, memory, GPU processes). Suitable for this kind of situation: there are multiple users using the same GPU server in each other's docker container, you want users to be able to know about the load states of the host in realtime without accessing the physical host.
+
+This repo provides a web application displaying state information. The application does not persist any state data, only displaying current states. State collection will be paused if there is no client accessing latest states lasting for more than the threshold (30 seconds by default), in order to save reduce running overhead. And the application itself can be deployed as a container.
+
+Q: Why not Prometheus + Grafana, or other mature container monitoring tools?
+
+A: Most of those tools depends on k8s, other than simply Docker. And some existing tools run in command line and need users to access physical host. After much searching, I did not find a simple and satisfying tool to meet my demand, so I develop this. 
+
+Libraries adopted: 
+- Collecting stats: [nvitop](https://github.com/XuehaiPan/nvitop#for-docker-users) and [Docker SDK for Python](https://github.com/docker/docker-py)
+- Frontend: 
+    - AJAX requests: [axios](https://github.com/axios/axios)
+    - Gauge charts: [ECharts](https://github.com/apache/echarts)
+- Backend: [Flask](https://github.com/pallets/flask)
+- Server: [Gunicorn](https://github.com/benoitc/gunicorn) + [Nginx](https://nginx.org) + [Supervisor](https://github.com/Supervisor/supervisor)
+
+
+# Usage
+
+**1. Clone this repo and build a docker image using the Dockfile**:
+
+```bash
+git clone 
+# Enter the directory of this project
+docker build -t monitor:latest .
+```
+
+**2. Start a monitor container**:
+
+The container needs to be able to access host's docker, there are two ways to achieve this, and hence there are two different startup methods.
+
+### 2.1 Mount docker.sock into the container
+
+```bash
+docker run -itd --restart=unless-stopped --gpus=all --pid=host --network=host \
+-v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker \
+-v /etc/localtime:/etc/localtime \
+--name adm-monitor monitor:latest
+```
+
+In the command above, `-v /var/run/docker.sock:/var/run/docker.sock` is to mount docker.sock into the container. And `-v /usr/bin/docker:/usr/bin/docker` as optional can be also mounted, so we can use `docker` command within the container (but this is not necessary since docker SDK communicates with docker using docker.sock only). 
+
+However, in some cases (e.g. the host OS is Ubuntu 22.04), we cannot use this way to make host's docker available in the container, so the 2nd way should be considered if you do not want to change the host OS.
+
+Note: 
+- In order to display host's hostname and IP address correctly, host network mode is adopted instead of default "bridge" (`--network=host`). For details, refer to [🔗](https://stackoverflow.com/questions/24319662/from-inside-of-a-docker-container-how-do-i-connect-to-the-localhost-of-the-mach). In this way, port mapping is no more needed, we can access specific port directly.
+- The nginx listening port has been set as 727 by default (see `configs/nginx.conf` - `http` - `server` - `listen`).
+
+
+### 2.2 Configure remote access for Docker daemon
+
+First of all, the host's docker should be configured to make remote access available. Follow instructions from offical doc: [Configure remote access for Docker daemon](https://docs.docker.com/config/daemon/remote-access/).
+
+In this way, mounting docker.sock or docker command is no longer needed.
+
+```bash
+docker run -itd --restart=unless-stopped --gpus=all --pid=host --network=host \
+-v /etc/localtime:/etc/localtime \
+--name adm-monitor monitor:latest
+```
+
+In code logic by default, if "/var/run/docker.sock" exists, the 1st way is adopted. Otherwise, the 2nd way will be attempted.
+
+
+**3. Check the states**: 
+
+Open a browser and access `<IP address>:<port>`.
+
+
+# Memorandum
+
+This section records the structure of collection results of `collector.py` for reference when developing. No need reading if you just use this tool.
+
+Result example of collector's `get_stats`:
+
+```json
+{
+    "time": "2023-07-16 17:21:03",
+    "hostname": "2gpu-3",
+    "ip": "10.3.240.101",
+    "host-stats": {
+        "cpu-perc": 12.3,
+        "mem": {
+            "perc-used": 20,
+            "used/total": ""
+        },
+        "gpu": [
+            {
+                "id": 0,
+                "model": "",
+                "mem-perc-used": 60.0,
+                "mem-used/total": "",
+                "util-perc": 99
+            },
+            {
+                "id": 1,
+                "model": "",
+                "mem-perc-used": 59.2,
+                "mem-used/total": "",
+                "util-perc": 98
+            }
+        ],
+        "disk": [
+            {
+                "path": "/",
+                "perc-used": 5.8,
+                "used/total": "27G / 467G"
+            },
+            {
+                "path": "/home",
+                "perc-used": 1.1,
+                "used/total": "63G / 5500G"
+            }
+        ]
+    },
+    "container-stats": {
+        "19ea60696906": {
+            "name": "my-container",
+            "cpu-perc": 1.23,
+            "mem": {
+                "perc-used": 0.06,
+                "used/total": "38.24M / 62.76G"
+            },
+            "gpu-proc": [
+                {
+                    "pid": 12345,
+                    "gpu-idx": 0,
+                    "mem-perc-used": 60.0,
+                    "sm-util": 60
+                },
+                {
+                    "pid": 12346,
+                    "gpu-idx": 0,
+                    "mem-perc-used": 12.3,
+                    "sm-util": 39
+                },
+                {
+                    "pid": 12347,
+                    "gpu-idx": 1,
+                    "mem-perc-used": 51.2,
+                    "sm-util": 99                        
+                }
+            ]
+        }
+    },
+    "note": ""
+}
+```
+
+`_get_gpu_process_stats` returns a list of dict(s) as intermediate results, e.g.:
+```json
+{
+    "pid": 12345,
+    "gpu-idx": 0,
+    "mem-perc-used": 31.0,
+    "mem-used": "1.2G",
+    "sm-util": 97,
+}
+```
