@@ -27,7 +27,7 @@ PAGE_TITLE = "PRIS-727 Server Monitor"
 app = Flask(__name__)
 
 # [only for dev]
-app.config["TEMPLATES_AUTO_RELOAD"] = True
+# app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>> Current Stats >>>>>>>>>>>>>>>>>>>>>>>>>>>
 class CurrentStats:

@@ -20,6 +20,12 @@
             margin: auto;
         }
 
+        #logo {
+            margin-top: 10px;
+            height:50px; 
+            width: 100%;
+        }
+
         fieldset {
             border: 2px solid black;
             margin: 10px;
@@ -60,7 +66,7 @@
         table td {
             border: 1px black solid;
             text-align: center;
-            padding: 1px 3px;
+            padding: 3px;
         }
     </style>
 
@@ -198,7 +204,7 @@
 </head>
 
 <body>
-    <div id="logo" style="height:50px; width: 100%;"></div>
+    <div id="logo"></div>
     <hr>
     <div>
         <div>
@@ -213,7 +219,7 @@
                 <div id="cpu-perc" style="height: 310px; width: 300px;"></div>
                 <div id="mem" style="height: 310px; width: 300px;"></div>
 
-                <div id="gpu" style="width: 500px;">
+                <div id="gpu" style="width: 800px;">
                     <div class="title">GPU</div>
                     <table>
                         <thead>
@@ -228,24 +234,6 @@
                         <tbody id="gpu-table">
                             <tr>
                                 <td colspan="5">Loading...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div id="disk" style="width: 300px;">
-                    <div class="title">Disk</div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Path</th>
-                                <th>Percent-Used(%)</th>
-                                <th>Used/Total</th>
-                            </tr>
-                        </thead>
-                        <tbody id="disk-table">
-                            <tr>
-                                <td colspan="3">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -373,11 +361,6 @@
                     let gpuTable = document.getElementById("gpu-table");
                     gpuTable.innerHTML = generateTableRowHTML(hostStats["gpu"],
                         keys = ["id", "model", "mem-perc-used", "mem-used/total", "util-perc"]);
-
-                    // Disk
-                    let diskTable = document.getElementById("disk-table");
-                    diskTable.innerHTML = generateTableRowHTML(hostStats["disk"],
-                        keys = ["path", "perc-used", "used/total"])
 
                     // Container
                     let containerTable = document.getElementById("container-table");

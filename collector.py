@@ -2,12 +2,9 @@
 Collect host states and container states based on nvitop and docker (Docker's offcial Python SDK).
 """
 import os.path as osp
-import json
 from datetime import datetime
 import socket
-import subprocess
 from typing import List, Union, Dict, Tuple, Literal
-import inspect
 from pprint import pprint
 
 # https://github.com/XuehaiPan/nvitop
@@ -106,22 +103,6 @@ class StatsCollector:
         }
 
     @staticmethod
-    def _get_disk_usage(
-        paths: Tuple[str, ...] = ("/", "/home")
-    ) -> List[Dict[str, Union[float, str]]]:
-        disk_usage = []
-        for path in paths:
-            usage = host.disk_usage(path)
-            disk_usage.append(
-                {
-                    "path": path,
-                    "perc-used": usage.percent,
-                    "used/total": f"{StatsCollector._convert_unit(usage.used)} / {StatsCollector._convert_unit(usage.total)}",
-                }
-            )
-        return disk_usage
-
-    @staticmethod
     def _get_gpu_stats() -> List[Dict[str, Union[float, str]]]:
         gpu_stats = []
         for device in Device.all():
@@ -198,12 +179,11 @@ class StatsCollector:
                     return container.short_id
         return None
 
-    def _get_full_container_stats(self) -> Tuple[Dict, str]:
+    def _get_full_container_stats(self) -> Dict:
         """
         Aggregate GPU stats into container basic stats.
         """
         container_stats = self._get_container_basic_stats()
-        additional_info = ""
 
         # Create an empty sub-dict for GPU process(es)
         for container_stat in container_stats.values():
@@ -224,18 +204,12 @@ class StatsCollector:
                     "sm-util": gpu_proc["sm-util"],
                 })
 
-            else:
-                additional_info += (
-                    f"GPU process ({gpu_proc['pid']}) is not belong to any container.\n"
-                )
-
-        return container_stats, additional_info
+        return container_stats
 
     def get_stats(self) -> Dict:
         """
         Assemble into the final complete structure.
         """
-        container_stats, additional_info = self._get_full_container_stats()
         return {
             "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "hostname": self._hostname,
@@ -243,11 +217,10 @@ class StatsCollector:
             "host-stats": {
                 "cpu-perc": self._get_cpu_percent(),
                 "mem": self._get_host_memory(),
-                "gpu": self._get_gpu_stats(),
-                "disk": self._get_disk_usage(),
+                "gpu": self._get_gpu_stats()
             },
-            "container-stats": container_stats,
-            "note": f"{additional_info}" if additional_info != '' else '',
+            "container-stats": self._get_full_container_stats(),
+            "note": '',
         }
 
 
