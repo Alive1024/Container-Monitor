@@ -81,63 +81,76 @@ Result example of collector's `get_stats`:
 
 ```json
 {
-    "time": "2023-07-16 17:21:03",
+    "time": "2023-08-01 21: 54: 32",
     "hostname": "2gpu-3",
     "ip": "10.3.240.101",
+    "note": "",
     "host-stats": {
-        "cpu-perc": 12.3,
+        "cpu-perc": 5.9,
         "mem": {
-            "perc-used": 20,
-            "used/total": ""
+            "perc-used": 8.5,
+            "used/total": "4.6G / 62.8G"
         },
         "gpu": [
             {
                 "id": 0,
-                "model": "",
-                "mem-perc-used": 60.0,
-                "mem-used/total": "",
-                "util-perc": 99
+                "model": "NVIDIA GeForce RTX 3080 Ti",
+                "mem-perc-used": 10.3,
+                "mem-used/total": "1.2G / 12.0G",
+
+                "util-perc": 72
             },
             {
                 "id": 1,
-                "model": "",
-                "mem-perc-used": 59.2,
-                "mem-used/total": "",
-                "util-perc": 98
+                "model": "NVIDIA GeForce RTX 3080 Ti",
+                "mem-perc-used": 10.2,
+                "mem-used/total": "1.2G / 12.0G",
+                "util-perc": 71
             }
         ]
     },
     "container-stats": {
         "19ea60696906": {
-            "name": "my-container",
-            "cpu-perc": 1.23,
+            "name": "my-container-1",
+            "cpu-perc": 145.1,
             "mem": {
-                "perc-used": 0.06,
-                "used/total": "38.24M / 62.76G"
+                "perc-used": 2.2,
+                "used/total": "1.4G / 62.8G"
             },
             "gpu-proc": [
                 {
-                    "pid": 12345,
                     "gpu-idx": 0,
-                    "mem-perc-used": 60.0,
-                    "sm-util": 60
+                    "mem-perc-used": 10.1,
+                    "pid": 678400,
+                    "sm-util": 62
                 },
                 {
-                    "pid": 12346,
-                    "gpu-idx": 0,
-                    "mem-perc-used": 12.3,
-                    "sm-util": 39
-                },
-                {
-                    "pid": 12347,
                     "gpu-idx": 1,
-                    "mem-perc-used": 51.2,
-                    "sm-util": 99                        
+                    "mem-perc-used": 10.1,
+                    "pid": 678400,
+                    "sm-util": 62
                 }
             ]
+        },
+        "52dfb3934c24": {
+            "name": "my-container-2",
+            "cpu-perc": 0.0,
+            "mem": {
+                "perc-used": 0.0,
+                "used/total": "0.0G / 62.8G"
+            },
+            "gpu-proc": []
+        },
+        "f9980ec0cf01": {
+            "name": "adm-monitor",
+            "cpu-perc": 1.1,
+            "mem": {
+                "perc-used": 2.7,
+                "used/total": "1.7G / 62.8G"
+            },
+            "gpu-proc": []
         }
-    },
-    "note": ""
+    }
 }
 ```
 
