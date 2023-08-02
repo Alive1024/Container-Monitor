@@ -4,7 +4,8 @@ Collect host states and container states based on nvitop and docker (Docker's of
 import os.path as osp
 from datetime import datetime
 import socket
-from typing import List, Union, Dict, Literal
+from typing import List, Union, Dict, Literal, Tuple
+from concurrent import futures as f
 from pprint import pprint
 
 # https://github.com/XuehaiPan/nvitop
@@ -139,6 +140,27 @@ class StatsCollector:
 
         return gpu_process_stats
 
+    @staticmethod
+    def _parse_container_basic_stats(container) -> Tuple[str, Dict]:
+        # docker stats API is slow, especially when there are multiple containers. See: 
+        # - https://github.com/moby/moby/issues/23188
+        # - https://stackoverflow.com/questions/68675259/a-problem-on-getting-docker-stats-by-python
+        stats = container.stats(stream=False)
+
+        # Ref: https://github.com/moby/moby/blob/eb131c5383db8cac633919f82abad86c99bffbe5/cli/command/container/stats_helpers.go#L175-L188
+        cpu_delta = stats["cpu_stats"]["cpu_usage"]["total_usage"] - stats["precpu_stats"]["cpu_usage"]["total_usage"]
+        system_delta = stats["cpu_stats"]["system_cpu_usage"] - stats["precpu_stats"]["system_cpu_usage"]
+
+        return container.short_id, {
+            "name": stats["name"][1:] if stats["name"].startswith('/') else stats["name"],
+            "cpu-perc": round((cpu_delta / system_delta) * stats["cpu_stats"]["online_cpus"] * 100, 1),
+            "mem": {
+                "perc-used": round(stats["memory_stats"]["usage"] / stats["memory_stats"]["limit"] * 100, 1),
+                "used/total": f"{StatsCollector._convert_unit(stats['memory_stats']['usage'])} / "
+                            f"{StatsCollector._convert_unit(stats['memory_stats']['limit'])}"
+            }
+        }
+
     def _get_container_basic_stats(self) -> Dict[str, Dict]:
         """
         There are 2 known ways to obtain CPU, memory and other basic stats of docker containers:
@@ -150,20 +172,15 @@ class StatsCollector:
         Through rough tests, the speeds of the two ways are very close. To avoid access docker command, 2nd way is adopted here.
         """
         container_basic_stats = {}
-        for container in self.docker_client.containers.list():
-            stats = container.stats(stream=False)
-            # Ref: https://github.com/moby/moby/blob/eb131c5383db8cac633919f82abad86c99bffbe5/cli/command/container/stats_helpers.go#L175-L188
-            cpu_delta = stats["cpu_stats"]["cpu_usage"]["total_usage"] - stats["precpu_stats"]["cpu_usage"]["total_usage"]
-            system_delta = stats["cpu_stats"]["system_cpu_usage"] - stats["precpu_stats"]["system_cpu_usage"]
-            container_basic_stats[container.short_id] = {
-                "name": stats["name"][1:] if stats["name"].startswith('/') else stats["name"],
-                "cpu-perc": round((cpu_delta / system_delta) * stats["cpu_stats"]["online_cpus"] * 100, 1),
-                "mem": {
-                    "perc-used": round(stats["memory_stats"]["usage"] / stats["memory_stats"]["limit"] * 100, 1),
-                    "used/total": f"{StatsCollector._convert_unit(stats['memory_stats']['usage'])} / "
-                                f"{StatsCollector._convert_unit(stats['memory_stats']['limit'])}"
-                }
-            }
+        with f.ThreadPoolExecutor() as executor:
+            futures = []
+            for container in self.docker_client.containers.list():
+                futures.append(executor.submit(StatsCollector._parse_container_basic_stats, container))
+
+            for future in f.as_completed(futures):
+                short_id, stats = future.result()
+                container_basic_stats[short_id] = stats
+
         return container_basic_stats
 
     @staticmethod

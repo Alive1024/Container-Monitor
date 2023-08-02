@@ -10,7 +10,7 @@ from collector import StatsCollector
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>> Custom Configs >>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Collection interval, in seconds
-COLLECTION_INTERVAL = 1.5
+COLLECTION_INTERVAL = 1
 
 # Pause threshold for collection thread, in seconds.
 # State collection will be paused if there is no client accessing latest states 
@@ -18,9 +18,9 @@ COLLECTION_INTERVAL = 1.5
 PAUSE_THRESHOLD = 30
 
 # AJAX request interval of client, in milliseconds
-AJAX_REQUEST_INTERVAL = 1500
+AJAX_REQUEST_INTERVAL = 2000
 
-# Page title displayed in webpage header
+# Page title displayed in webpage title and header
 PAGE_TITLE = "PRIS-727 Server Monitor"
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
