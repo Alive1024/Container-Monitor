@@ -10,7 +10,7 @@ This repo provides a web application displaying state information. The applicati
 
 Q: Why not Prometheus + Grafana, or other mature container monitoring tools?
 
-A: Most of those tools depends on k8s, other than simply Docker. And some existing tools run in command line and need users to access physical host. After much searching, I did not find a simple and satisfying tool to meet my demand, so I develop this. 
+A: Some tools depends on k8s, other than simply Docker. And some tools do not provide monitoring on GPUs (e.g. [cAdvisor](https://github.com/google/cadvisor/tree/master)). And some tools run in command line and need users to access physical host. After much searching, I did not find a simple and satisfying tool to meet my demand, so I develop this. 
 
 Libraries adopted: 
 - Collecting stats: [nvitop](https://github.com/XuehaiPan/nvitop#for-docker-users) and [Docker SDK for Python](https://github.com/docker/docker-py)
@@ -39,18 +39,17 @@ The container needs to be able to access host's docker, there are two ways to ac
 
 ```shell
 docker run -itd --restart=unless-stopped --gpus=all --pid=host --network=host \
--v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker \
+-v /var/run/docker.sock:/var/run/docker.sock \
 -v /etc/localtime:/etc/localtime \
 --name adm-monitor monitor:latest
 ```
 
-In the command above, `-v /var/run/docker.sock:/var/run/docker.sock` is to mount docker.sock into the container. And `-v /usr/bin/docker:/usr/bin/docker` as optional can be also mounted, so we can use `docker` command within the container (but this is not necessary since docker SDK communicates with docker using docker.sock only). 
-
-However, in some cases (e.g. the host OS is Ubuntu 22.04), we cannot use this way to make host's docker available in the container, so the 2nd way should be considered if you do not want to change the host OS.
+In the command above, `-v /var/run/docker.sock:/var/run/docker.sock` is to mount docker.sock into the container. 
 
 Note: 
 - In order to display host's hostname and IP address correctly, host network mode is adopted instead of default "bridge" (`--network=host`). For details, refer to [🔗](https://stackoverflow.com/questions/24319662/from-inside-of-a-docker-container-how-do-i-connect-to-the-localhost-of-the-mach). In this way, port mapping is no more needed, we can access specific port directly.
 - The nginx listening port has been set as 727 by default (see `configs/nginx.conf` - `http` - `server` - `listen`).
+- In some case, even if `--network=host` has been specified, specific port is not available from outside for unknown reason. If you meet this unfortunately, the current temporary solution is to remove `--network=host` and add a port mapping like `-p 727:727` (suppose that the nginx port has been set as 727). However, the hostname and IP address cannot be displayed correctly, they will be the container itself's information other than the physical host's.
 
 
 ### 2.2 Configure remote access for Docker daemon
@@ -65,7 +64,7 @@ docker run -itd --restart=unless-stopped --gpus=all --pid=host --network=host \
 --name adm-monitor monitor:latest
 ```
 
-In code logic by default, if "/var/run/docker.sock" exists, the 1st way is adopted. Otherwise, the 2nd way will be attempted.
+As stated by docker offical, the 2nd way is **DANGEROUS**, prioritize the 1st way.
 
 
 ## 3. Check the states
