@@ -31,6 +31,10 @@ Clone this repo, enter the directory of this repo, and:
 docker build -t monitor:latest .
 ```
 
+
+
+Besides building docker image locally, you can simply pull latest image from Docker Hub. A Github Action for building and pushing docker image has been added, latest docker image will be updated automatically once there is git commit to branch "main". You can pull the image from [Docker Hub](https://hub.docker.com/repository/docker/alive1024/727-monitor).
+
 ## 2. Start a monitor container
 
 The container needs to be able to access host's docker, there are two ways to achieve this, and hence there are two different startup methods.
