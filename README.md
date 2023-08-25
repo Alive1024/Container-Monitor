@@ -1,5 +1,7 @@
 # Container Monitor
 
+![docker](https://github.com/Alive1024/Container-Monitor/actions/workflows/build_push_docker_image.yml/badge.svg)
+
 # Introduction
 
 This is a very simple container monitor, showing basic host states (CPU, memory, GPU) and container states (ID, Name, CPU, memory, GPU processes). Suitable for this kind of situation: there are multiple users using the same GPU server in each other's docker container, you want users to be able to know about the load states of the host in realtime without accessing the physical host.
