@@ -25,7 +25,7 @@ Libraries adopted:
 
 # Usage
 
-## 1. Clone this repo and build a docker image using the Dockfile
+## 1. Clone this repo and build a docker image using the Dockerfile
 
 Clone this repo, enter the directory of this repo, and:
 
@@ -47,7 +47,7 @@ The container needs to be able to access host's docker, there are two ways to ac
 docker run -itd --restart=unless-stopped --gpus=all --pid=host --network=host \
 -v /var/run/docker.sock:/var/run/docker.sock \
 -v /etc/localtime:/etc/localtime \
---name adm-monitor monitor:latest
+--name adm-monitor alive1024/727-monitor
 ```
 
 In the command above, `-v /var/run/docker.sock:/var/run/docker.sock` is to mount docker.sock into the container. 
@@ -67,7 +67,7 @@ In this way, mounting docker.sock or docker command is no longer needed.
 ```shell
 docker run -itd --restart=unless-stopped --gpus=all --pid=host --network=host \
 -v /etc/localtime:/etc/localtime \
---name adm-monitor monitor:latest
+--name adm-monitor alive1024/727-monitor
 ```
 
 As stated by docker offical, the 2nd way is **DANGEROUS**, prioritize the 1st way.
