@@ -39,7 +39,7 @@ Besides building docker image locally, you can simply pull latest image from Doc
 
 ## 2. Start a monitor container
 
-The container needs to be able to access host's docker, there are two ways to achieve this, and hence there are two different startup methods.
+The container needs to be able to access host's docker, there are two ways to achieve this, and hence there are two different startup methods. Please note that in the following example commands, Docker image built by this repo is used, rather than your local one, you need to replace the Docker image name if you want to use your local image.
 
 ### 2.1 Mount docker.sock into the container
 
@@ -55,7 +55,7 @@ In the command above, `-v /var/run/docker.sock:/var/run/docker.sock` is to mount
 Note: 
 - In order to display host's hostname and IP address correctly, host network mode is adopted instead of default "bridge" (`--network=host`). For details, refer to [🔗](https://stackoverflow.com/questions/24319662/from-inside-of-a-docker-container-how-do-i-connect-to-the-localhost-of-the-mach). In this way, port mapping is no more needed, we can access specific port directly.
 - The nginx listening port has been set as 727 by default (see `configs/nginx.conf` - `http` - `server` - `listen`).
-- In some case, even if `--network=host` has been specified, specific port is not available from outside for unknown reason. If you meet this unfortunately, the current temporary solution is to remove `--network=host` and add a port mapping like `-p 727:727` (suppose that the nginx port has been set as 727). However, the hostname and IP address cannot be displayed correctly, they will be the container itself's information other than the physical host's.
+- In some case, even if `--network=host` has been specified, specific port is not available from outside for unknown reason. This will make the monitor service unavailable. If you meet this unfortunately, the current temporary solution is to <u>**remove `--network=host` and add a port mapping**</u> like `-p 727:727` (suppose that the nginx port has been set as 727). However, the hostname and IP address cannot be displayed correctly, they will be the container itself's information other than the physical host's.
 
 
 ### 2.2 Configure remote access for Docker daemon
